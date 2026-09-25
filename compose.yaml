@@ -16,6 +16,17 @@ services:
     networks:
       - vdc-network
 
+  motor-simulator:
+    build:
+      context: ./core/simulator
+    container_name: vdc-motor-01
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+
+    networks:
+      - vdc-network
+
 networks:
   vdc-network:
     name: vdc-lab-network
