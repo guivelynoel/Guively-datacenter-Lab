@@ -1,0 +1,22 @@
+services:
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: vdc-mqtt
+    restart: unless-stopped
+
+    ports:
+      - "1883:1883"
+
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+    networks:
+      - vdc-network
+
+networks:
+  vdc-network:
+    name: vdc-lab-network
+    driver: bridge
