@@ -20,3 +20,25 @@ mosquitto/log/
 # IDE
 .vscode/
 .idea/
+
+# Local secrets
+.env
+.env.*
+
+# Keep public environment template
+!.env.example
+
+# Runtime databases
+admin/data/*.db
+admin/data/*.db-*
+
+# Local backups
+*.backup
+*.bak
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store

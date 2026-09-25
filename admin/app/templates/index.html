@@ -1,0 +1,2036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>VDC BMS Control Center</title>
+
+<style>
+
+* { box-sizing:border-box; }
+
+body {
+    margin:0;
+    background:#090d12;
+    color:#e8edf2;
+    font-family:Arial,Helvetica,sans-serif;
+}
+
+header {
+    padding:22px 32px;
+    background:#10161d;
+    border-bottom:1px solid #29333e;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+h1,h2,h3 { margin:0; }
+
+.subtitle {
+    color:#8794a3;
+    font-size:12px;
+    margin-top:6px;
+}
+
+.online { color:#6edc86; }
+
+.container {
+    max-width:1500px;
+    margin:auto;
+    padding:28px;
+}
+
+.stats {
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:28px;
+}
+
+.stat {
+    background:#111820;
+    border:1px solid #29333e;
+    border-radius:8px;
+    padding:17px;
+}
+
+.stat label {
+    color:#7f8b99;
+    font-size:10px;
+}
+
+.stat strong {
+    display:block;
+    margin-top:7px;
+    font-size:26px;
+}
+
+.toolbar {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:17px;
+}
+
+button {
+    border:0;
+    border-radius:5px;
+    padding:9px 13px;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.primary {
+    background:#e8edf2;
+    color:#0a0e13;
+}
+
+.secondary {
+    background:#26313d;
+    color:white;
+}
+
+.danger {
+    background:#682a31;
+    color:white;
+}
+
+.grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(470px,1fr));
+    gap:17px;
+}
+
+.card {
+    background:#111820;
+    border:1px solid #29333e;
+    border-radius:8px;
+    overflow:hidden;
+}
+
+.card-header {
+    padding:17px;
+    border-bottom:1px solid #29333e;
+    display:flex;
+    justify-content:space-between;
+}
+
+.device-id {
+    font-size:19px;
+    font-weight:bold;
+}
+
+.meta {
+    color:#8592a0;
+    font-size:12px;
+    margin-top:5px;
+}
+
+.configured {
+    color:#6edc86;
+    font-size:11px;
+}
+
+.card-actions {
+    margin-top:10px;
+}
+
+.points {
+    padding:12px 17px 17px;
+}
+
+.point {
+    padding:11px 0;
+    border-bottom:1px solid #242d37;
+}
+
+.point:last-child {
+    border-bottom:0;
+}
+
+.point-top {
+    display:flex;
+    justify-content:space-between;
+}
+
+.point-name {
+    font-weight:bold;
+    font-size:13px;
+}
+
+.badge {
+    padding:3px 7px;
+    border-radius:4px;
+    font-size:9px;
+    text-transform:uppercase;
+}
+
+.analog { background:#23354b; }
+.binary { background:#2b4435; }
+.multistate { background:#493d25; }
+
+.point-detail {
+    color:#8996a5;
+    font-size:11px;
+    margin-top:7px;
+    line-height:1.7;
+}
+
+.empty {
+    padding:50px;
+    text-align:center;
+    border:1px dashed #394552;
+    color:#8996a5;
+}
+
+.architecture {
+    margin-top:30px;
+    border:1px solid #29333e;
+    background:#111820;
+    border-radius:8px;
+    padding:18px;
+    text-align:center;
+    color:#8592a0;
+}
+
+.modal {
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.83);
+    overflow-y:auto;
+    z-index:100;
+}
+
+.modal-content {
+    max-width:1200px;
+    width:96%;
+    margin:25px auto;
+    background:#111820;
+    border:1px solid #35414d;
+    border-radius:9px;
+    padding:24px;
+}
+
+.modal-header {
+    display:flex;
+    justify-content:space-between;
+}
+
+.close {
+    cursor:pointer;
+    font-size:27px;
+}
+
+.form-grid {
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:13px;
+    margin-top:20px;
+}
+
+label {
+    display:block;
+    color:#8592a0;
+    font-size:10px;
+    text-transform:uppercase;
+    margin-bottom:5px;
+}
+
+input,select {
+    width:100%;
+    background:#090d12;
+    border:1px solid #35414d;
+    color:white;
+    padding:10px;
+    border-radius:5px;
+}
+
+.section {
+    margin-top:25px;
+    border-top:1px solid #29333e;
+    padding-top:18px;
+}
+
+.point-editor {
+    background:#0d1319;
+    border:1px solid #29333e;
+    border-radius:7px;
+    padding:14px;
+    margin:10px 0;
+}
+
+.editor-top {
+    display:grid;
+    grid-template-columns:1.5fr .8fr .7fr auto;
+    gap:8px;
+}
+
+.analog-fields {
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:8px;
+    margin-top:10px;
+}
+
+.binary-fields {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:10px;
+}
+
+.multi-fields {
+    margin-top:10px;
+}
+
+.alarm-row {
+    margin-top:10px;
+    color:#9ba7b4;
+    font-size:11px;
+}
+
+.alarm-row input {
+    width:auto;
+}
+
+.footer {
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:22px;
+}
+
+@media(max-width:800px) {
+    .stats { grid-template-columns:1fr 1fr; }
+    .form-grid { grid-template-columns:1fr; }
+    .grid { grid-template-columns:1fr; }
+    .editor-top { grid-template-columns:1fr; }
+    .analog-fields { grid-template-columns:1fr 1fr; }
+}
+
+
+/* =========================================================
+   LIVE OPERATIONS CONSOLE
+   ========================================================= */
+
+.operations {
+    margin-bottom:32px;
+}
+
+.operations-title {
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    margin-bottom:16px;
+}
+
+.operations-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+    gap:16px;
+}
+
+.ops-card {
+    background:#111820;
+    border:1px solid #29333e;
+    border-radius:8px;
+    overflow:hidden;
+}
+
+.ops-card.NORMAL {
+    border-top:3px solid #6edc86;
+}
+
+.ops-card.WARNING {
+    border-top:3px solid #e4b64d;
+}
+
+.ops-card.CRITICAL {
+    border-top:3px solid #e35d6a;
+}
+
+.ops-card.NO_DATA {
+    border-top:3px solid #65717e;
+}
+
+.ops-header {
+    display:flex;
+    justify-content:space-between;
+    padding:17px;
+    border-bottom:1px solid #29333e;
+}
+
+.ops-device {
+    font-size:18px;
+    font-weight:bold;
+}
+
+.severity {
+    font-size:11px;
+    font-weight:bold;
+    padding:5px 9px;
+    border-radius:4px;
+    height:max-content;
+}
+
+.severity.NORMAL {
+    color:#6edc86;
+    background:#173323;
+}
+
+.severity.WARNING {
+    color:#f0c45b;
+    background:#3b321b;
+}
+
+.severity.CRITICAL {
+    color:#ff7b87;
+    background:#421f25;
+}
+
+.severity.NO_DATA {
+    color:#9aa6b2;
+    background:#252d35;
+}
+
+.live-points {
+    padding:10px 17px 16px;
+}
+
+.live-point {
+    display:grid;
+    grid-template-columns:1fr auto auto;
+    gap:14px;
+    align-items:center;
+    padding:10px 0;
+    border-bottom:1px solid #242d37;
+}
+
+.live-point:last-child {
+    border-bottom:0;
+}
+
+.live-value {
+    font-family:monospace;
+    font-weight:bold;
+}
+
+.point-state {
+    font-size:10px;
+    font-weight:bold;
+}
+
+.point-state.NORMAL { color:#6edc86; }
+.point-state.WARNING { color:#e4b64d; }
+.point-state.CRITICAL { color:#ff6977; }
+.point-state.NO_DATA { color:#7f8b99; }
+
+.alarm-console {
+    margin-top:20px;
+    background:#111820;
+    border:1px solid #29333e;
+    border-radius:8px;
+    overflow:hidden;
+}
+
+.alarm-console-header {
+    padding:16px 18px;
+    border-bottom:1px solid #29333e;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.alarm-count {
+    font-weight:bold;
+}
+
+.alarm-count.active {
+    color:#ff6977;
+}
+
+.alarm-list {
+    padding:0 18px;
+}
+
+.alarm-item {
+    padding:15px 0;
+    border-bottom:1px solid #29333e;
+    display:grid;
+    grid-template-columns:120px 1fr auto;
+    gap:15px;
+    align-items:center;
+}
+
+.alarm-item:last-child {
+    border-bottom:0;
+}
+
+.alarm-severity {
+    color:#ff6977;
+    font-weight:bold;
+    font-size:11px;
+}
+
+.alarm-value {
+    font-family:monospace;
+    font-size:18px;
+    font-weight:bold;
+}
+
+.no-alarms {
+    padding:24px 18px;
+    color:#6edc86;
+}
+
+.connection {
+    font-size:11px;
+    font-weight:bold;
+}
+
+.connection.connected {
+    color:#6edc86;
+}
+
+.connection.disconnected {
+    color:#ff6977;
+}
+
+.live-dot {
+    display:inline-block;
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#6edc86;
+    margin-right:6px;
+}
+
+.ops-summary {
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:18px;
+}
+
+.ops-summary-card {
+    background:#111820;
+    border:1px solid #29333e;
+    border-radius:8px;
+    padding:15px;
+}
+
+.ops-summary-card label {
+    color:#7f8b99;
+    font-size:10px;
+}
+
+.ops-summary-card strong {
+    display:block;
+    margin-top:7px;
+    font-size:20px;
+}
+
+@media(max-width:800px) {
+    .ops-summary {
+        grid-template-columns:1fr 1fr;
+    }
+
+    .alarm-item {
+        grid-template-columns:1fr;
+    }
+
+    .live-point {
+        grid-template-columns:1fr auto;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+
+<div>
+<h1>GUIVELY VIRTUAL DATA CENTER</h1>
+
+<div class="subtitle">
+BMS / Industrial Equipment & Point Configuration
+</div>
+</div>
+
+<div class="online">
+● CONTROL CENTER ONLINE
+</div>
+
+</header>
+
+
+<div class="container">
+
+<div class="stats">
+
+<div class="stat">
+<label>EQUIPMENT</label>
+<strong id="equipmentCount">0</strong>
+</div>
+
+<div class="stat">
+<label>BMS POINTS</label>
+<strong id="pointCount">0</strong>
+</div>
+
+<div class="stat">
+<label>PROTOCOLS</label>
+<strong id="protocolCount">0</strong>
+</div>
+
+<div class="stat">
+<label>SYSTEM</label>
+<strong style="color:#6edc86">ONLINE</strong>
+</div>
+
+</div>
+
+
+
+<!-- =====================================================
+     LIVE OPERATIONS CONSOLE
+     ===================================================== -->
+
+<section class="operations">
+
+    <div class="operations-title">
+
+        <div>
+            <h2>Live Operations</h2>
+            <div class="subtitle">
+                Real-time equipment telemetry and alarm monitoring
+            </div>
+        </div>
+
+        <div id="mqttConnection"
+             class="connection disconnected">
+            ● MQTT DISCONNECTED
+        </div>
+
+    </div>
+
+
+    <div class="ops-summary">
+
+        <div class="ops-summary-card">
+            <label>LIVE EQUIPMENT</label>
+            <strong id="liveEquipmentCount">0</strong>
+        </div>
+
+        <div class="ops-summary-card">
+            <label>ACTIVE ALARMS</label>
+            <strong id="activeAlarmCount">0</strong>
+        </div>
+
+        <div class="ops-summary-card">
+            <label>WARNING</label>
+            <strong id="warningCount">0</strong>
+        </div>
+
+        <div class="ops-summary-card">
+            <label>CRITICAL</label>
+            <strong id="criticalCount">0</strong>
+        </div>
+
+    </div>
+
+
+    <div id="operationsGrid"
+         class="operations-grid">
+    </div>
+
+
+    <div class="alarm-console">
+
+        <div class="alarm-console-header">
+
+            <div>
+                <h3>Active Alarms</h3>
+                <div class="subtitle">
+                    Alarm evaluation uses configured BMS setpoints
+                </div>
+            </div>
+
+            <div id="alarmConsoleCount"
+                 class="alarm-count">
+                0 ACTIVE
+            </div>
+
+        </div>
+
+        <div id="alarmList"
+             class="alarm-list">
+
+            <div class="no-alarms">
+                ● No active alarms
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<div class="toolbar">
+
+<div>
+<h2>Equipment Registry</h2>
+
+<div class="subtitle">
+Analog, binary and multistate BMS point configuration
+</div>
+</div>
+
+<button class="primary" onclick="newEquipment()">
++ ADD EQUIPMENT
+</button>
+
+</div>
+
+
+<div id="equipmentGrid" class="grid"></div>
+
+
+<div class="architecture">
+
+CONFIGURATION LAYER:
+Equipment → BMS Points → Setpoints → Alarm Rules
+
+<br>
+
+TELEMETRY LAYER:
+MQTT / Modbus TCP / BACnet/IP → Telegraf → InfluxDB → Grafana
+
+</div>
+
+</div>
+
+
+<div id="modal" class="modal">
+
+<div class="modal-content">
+
+<div class="modal-header">
+
+<div>
+<h2 id="modalTitle">Add Equipment</h2>
+<div class="subtitle">
+Configure equipment and BMS points
+</div>
+</div>
+
+<span class="close" onclick="closeModal()">×</span>
+
+</div>
+
+
+<div class="form-grid">
+
+<div>
+<label>Equipment ID</label>
+<input id="equipmentId">
+</div>
+
+<div>
+<label>Equipment Name</label>
+<input id="equipmentName">
+</div>
+
+<div>
+<label>Equipment Type</label>
+
+<select id="equipmentType">
+<option>Motor</option>
+<option>Pump</option>
+<option>VFD</option>
+<option>CRAH</option>
+<option>Chiller</option>
+<option>UPS</option>
+<option>ATS</option>
+<option>Generator</option>
+<option>PDU</option>
+<option>Server</option>
+<option>Custom</option>
+</select>
+
+</div>
+
+
+<div>
+<label>Location</label>
+<input id="equipmentLocation">
+</div>
+
+
+<div>
+<label>Protocol</label>
+
+<select id="protocol">
+<option>MQTT</option>
+<option>Modbus TCP</option>
+<option>BACnet/IP</option>
+<option>SNMP</option>
+</select>
+
+</div>
+
+</div>
+
+
+<div class="section">
+
+<div class="toolbar">
+
+<div>
+<h3>BMS Points</h3>
+
+<div class="subtitle">
+Configure analog values, digital states and equipment modes
+</div>
+</div>
+
+<button class="secondary" onclick="addPoint()">
++ ADD POINT
+</button>
+
+</div>
+
+<div id="pointEditors"></div>
+
+</div>
+
+
+<div class="footer">
+
+<button class="secondary" onclick="closeModal()">
+CANCEL
+</button>
+
+<button
+class="primary"
+id="saveButton"
+onclick="saveEquipment()">
+SAVE EQUIPMENT
+</button>
+
+</div>
+
+</div>
+</div>
+
+
+<script>
+
+const modal =
+document.getElementById("modal");
+
+let editingEquipmentId = null;
+
+
+function num(v) {
+    return v === "" ? null : Number(v);
+}
+
+
+function slugify(v) {
+    return v
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g,"_")
+        .replace(/^_|_$/g,"");
+}
+
+
+function addPoint(data={}) {
+
+    const row =
+        document.createElement("div");
+
+    row.className =
+        "point-editor";
+
+
+    row.innerHTML = `
+
+    <div class="editor-top">
+
+        <input
+        class="p-name"
+        placeholder="Point name"
+        value="${data.display_name || ""}">
+
+        <select
+        class="p-type"
+        onchange="changePointType(this)">
+
+            <option value="analog"
+            ${data.point_type === "analog" ||
+              !data.point_type ? "selected":""}>
+            Analog
+            </option>
+
+            <option value="binary"
+            ${data.point_type === "binary" ? "selected":""}>
+            Binary
+            </option>
+
+            <option value="multistate"
+            ${data.point_type === "multistate" ? "selected":""}>
+            Multistate
+            </option>
+
+        </select>
+
+        <input
+        class="p-unit"
+        placeholder="Unit"
+        value="${data.unit || ""}">
+
+        <button
+        class="danger"
+        onclick="this.closest('.point-editor').remove()">
+        DELETE
+        </button>
+
+    </div>
+
+
+    <div class="analog-fields">
+
+        <div>
+        <label>Low-Low</label>
+        <input class="p-ll" type="number" step="any"
+        value="${data.critical_low ?? ""}">
+        </div>
+
+        <div>
+        <label>Low</label>
+        <input class="p-low" type="number" step="any"
+        value="${data.warning_low ?? ""}">
+        </div>
+
+        <div>
+        <label>Normal</label>
+        <input class="p-normal" type="number" step="any"
+        value="${data.normal_value ?? ""}">
+        </div>
+
+        <div>
+        <label>High</label>
+        <input class="p-high" type="number" step="any"
+        value="${data.warning_high ?? ""}">
+        </div>
+
+        <div>
+        <label>High-High</label>
+        <input class="p-hh" type="number" step="any"
+        value="${data.critical_high ?? ""}">
+        </div>
+
+        <div>
+        <label>Alarm</label>
+
+        <select class="p-alarm">
+        <option value="true"
+        ${data.alarm_enabled !== false ? "selected":""}>
+        Enabled
+        </option>
+
+        <option value="false"
+        ${data.alarm_enabled === false ? "selected":""}>
+        Disabled
+        </option>
+        </select>
+
+        </div>
+
+    </div>
+
+
+    <div class="binary-fields">
+
+        <div>
+        <label>State 0</label>
+        <input
+        class="p-zero"
+        placeholder="OFF / NORMAL / STOPPED"
+        value="${data.binary_zero_label || ""}">
+        </div>
+
+        <div>
+        <label>State 1</label>
+        <input
+        class="p-one"
+        placeholder="ON / FAULT / RUNNING"
+        value="${data.binary_one_label || ""}">
+        </div>
+
+    </div>
+
+
+    <div class="multi-fields">
+
+        <label>States</label>
+
+        <input
+        class="p-states"
+        placeholder="HAND, OFF, AUTO"
+        value="${data.state_labels || ""}">
+
+    </div>
+
+    `;
+
+
+    document
+        .getElementById("pointEditors")
+        .appendChild(row);
+
+
+    changePointType(
+        row.querySelector(".p-type")
+    );
+}
+
+
+function changePointType(select) {
+
+    const row =
+        select.closest(".point-editor");
+
+    const type =
+        select.value;
+
+
+    row.querySelector(".analog-fields")
+        .style.display =
+        type === "analog"
+        ? "grid"
+        : "none";
+
+
+    row.querySelector(".binary-fields")
+        .style.display =
+        type === "binary"
+        ? "grid"
+        : "none";
+
+
+    row.querySelector(".multi-fields")
+        .style.display =
+        type === "multistate"
+        ? "block"
+        : "none";
+
+
+    row.querySelector(".p-unit")
+        .style.display =
+        type === "analog"
+        ? "block"
+        : "none";
+}
+
+
+function resetForm() {
+
+    editingEquipmentId = null;
+
+    equipmentId.value = "";
+    equipmentId.disabled = false;
+
+    equipmentName.value = "";
+
+    equipmentType.value = "Motor";
+
+    document.getElementById("equipmentLocation").value = "";
+
+    protocol.value = "MQTT";
+
+    pointEditors.innerHTML = "";
+
+    modalTitle.textContent =
+        "Add Equipment";
+
+    saveButton.textContent =
+        "SAVE EQUIPMENT";
+}
+
+
+function newEquipment() {
+
+    resetForm();
+
+    addPoint({
+        display_name:"Temperature",
+        point_type:"analog",
+        unit:"°C"
+    });
+
+    modal.style.display =
+        "block";
+}
+
+
+function closeModal() {
+
+    modal.style.display =
+        "none";
+}
+
+
+async function editEquipment(id) {
+
+    resetForm();
+
+    const device =
+        await fetch(
+            `/api/equipment/${id}`
+        ).then(r=>r.json());
+
+
+    const points =
+        await fetch(
+            `/api/equipment/${id}/points`
+        ).then(r=>r.json());
+
+
+    editingEquipmentId =
+        id;
+
+
+    equipmentId.value =
+        device.equipment_id;
+
+    equipmentId.disabled =
+        true;
+
+    equipmentName.value =
+        device.name;
+
+    equipmentType.value =
+        device.equipment_type;
+
+    document.getElementById("equipmentLocation").value =
+        device.location || "";
+
+    protocol.value =
+        device.protocol;
+
+
+    pointEditors.innerHTML =
+        "";
+
+
+    points.forEach(
+        p => addPoint(p)
+    );
+
+
+    modalTitle.textContent =
+        `Edit ${id}`;
+
+    saveButton.textContent =
+        "SAVE CHANGES";
+
+    modal.style.display =
+        "block";
+}
+
+
+async function saveEquipment() {
+
+    const id =
+        equipmentId
+        .value
+        .trim()
+        .toUpperCase();
+
+
+    const name =
+        equipmentName
+        .value
+        .trim();
+
+
+    if (!id || !name) {
+
+        alert(
+            "Equipment ID and name are required."
+        );
+
+        return;
+    }
+
+
+    const equipmentPayload = {
+
+        name:name,
+
+        equipment_type:
+            equipmentType.value,
+
+        location:
+            location.value,
+
+        protocol:
+            protocol.value,
+
+        enabled:true
+    };
+
+
+    if (editingEquipmentId) {
+
+        const r =
+            await fetch(
+                `/api/equipment/${editingEquipmentId}`,
+                {
+                    method:"PUT",
+                    headers:{
+                        "Content-Type":"application/json"
+                    },
+                    body:JSON.stringify(
+                        equipmentPayload
+                    )
+                }
+            );
+
+
+        if (!r.ok) {
+
+            alert(
+                "Equipment update failed."
+            );
+
+            return;
+        }
+
+
+        const oldPoints =
+            await fetch(
+                `/api/equipment/${editingEquipmentId}/points`
+            ).then(r=>r.json());
+
+
+        for (const p of oldPoints) {
+
+            await fetch(
+                `/api/points/${p.id}`,
+                {
+                    method:"DELETE"
+                }
+            );
+        }
+
+    } else {
+
+        const r =
+            await fetch(
+                "/api/equipment",
+                {
+                    method:"POST",
+                    headers:{
+                        "Content-Type":"application/json"
+                    },
+                    body:JSON.stringify({
+                        equipment_id:id,
+                        ...equipmentPayload
+                    })
+                }
+            );
+
+
+        if (!r.ok) {
+
+            const e =
+                await r.json();
+
+            alert(
+                e.detail ||
+                "Equipment creation failed."
+            );
+
+            return;
+        }
+    }
+
+
+    const rows =
+        document.querySelectorAll(
+            ".point-editor"
+        );
+
+
+    for (const row of rows) {
+
+        const displayName =
+            row
+            .querySelector(".p-name")
+            .value
+            .trim();
+
+
+        if (!displayName)
+            continue;
+
+
+        const type =
+            row
+            .querySelector(".p-type")
+            .value;
+
+
+        const payload = {
+
+            key:
+                slugify(displayName),
+
+            display_name:
+                displayName,
+
+            point_type:
+                type,
+
+            unit:
+                type === "analog"
+                ? row.querySelector(".p-unit").value
+                : "",
+
+            critical_low:
+                type === "analog"
+                ? num(row.querySelector(".p-ll").value)
+                : null,
+
+            warning_low:
+                type === "analog"
+                ? num(row.querySelector(".p-low").value)
+                : null,
+
+            normal_value:
+                type === "analog"
+                ? num(row.querySelector(".p-normal").value)
+                : null,
+
+            warning_high:
+                type === "analog"
+                ? num(row.querySelector(".p-high").value)
+                : null,
+
+            critical_high:
+                type === "analog"
+                ? num(row.querySelector(".p-hh").value)
+                : null,
+
+            alarm_enabled:
+                row.querySelector(".p-alarm").value === "true",
+
+            binary_zero_label:
+                type === "binary"
+                ? row.querySelector(".p-zero").value
+                : null,
+
+            binary_one_label:
+                type === "binary"
+                ? row.querySelector(".p-one").value
+                : null,
+
+            state_labels:
+                type === "multistate"
+                ? row.querySelector(".p-states").value
+                : null,
+
+            enabled:true
+        };
+
+
+        const pointResponse =
+            await fetch(
+                `/api/equipment/${id}/points`,
+                {
+                    method:"POST",
+                    headers:{
+                        "Content-Type":"application/json"
+                    },
+                    body:JSON.stringify(
+                        payload
+                    )
+                }
+            );
+
+
+        if (!pointResponse.ok) {
+
+            alert(
+                `Point save failed: ${displayName}`
+            );
+
+            return;
+        }
+    }
+
+
+    closeModal();
+
+    resetForm();
+
+    loadEquipment();
+}
+
+
+async function deleteEquipment(id) {
+
+    if (
+        !confirm(
+            `Delete ${id}?`
+        )
+    )
+        return;
+
+
+    await fetch(
+        `/api/equipment/${id}`,
+        {
+            method:"DELETE"
+        }
+    );
+
+
+    loadEquipment();
+}
+
+
+async function loadEquipment() {
+
+    const equipment =
+        await fetch(
+            "/api/equipment"
+        ).then(r=>r.json());
+
+
+    equipmentGrid.innerHTML =
+        "";
+
+
+    let pointTotal = 0;
+
+    const protocols =
+        new Set();
+
+
+    for (const device of equipment) {
+
+        protocols.add(
+            device.protocol
+        );
+
+
+        const points =
+            await fetch(
+                `/api/equipment/${device.equipment_id}/points`
+            ).then(r=>r.json());
+
+
+        pointTotal +=
+            points.length;
+
+
+        let pointHtml = "";
+
+
+        for (const p of points) {
+
+            let detail = "";
+
+
+            if (p.point_type === "analog") {
+
+                detail =
+                `LL ${p.critical_low ?? "—"} |
+                 L ${p.warning_low ?? "—"} |
+                 Normal ${p.normal_value ?? "—"} ${p.unit} |
+                 H ${p.warning_high ?? "—"} |
+                 HH ${p.critical_high ?? "—"}`;
+
+            }
+
+
+            else if (p.point_type === "binary") {
+
+                detail =
+                `0 = ${p.binary_zero_label || "OFF"}
+                 &nbsp; | &nbsp;
+                 1 = ${p.binary_one_label || "ON"}`;
+
+            }
+
+
+            else {
+
+                detail =
+                `States:
+                 ${p.state_labels || "Not configured"}`;
+
+            }
+
+
+            pointHtml += `
+
+            <div class="point">
+
+                <div class="point-top">
+
+                    <span class="point-name">
+                    ${p.display_name}
+                    </span>
+
+                    <span
+                    class="badge ${p.point_type}">
+                    ${p.point_type}
+                    </span>
+
+                </div>
+
+                <div class="point-detail">
+                ${detail}
+                </div>
+
+            </div>
+
+            `;
+        }
+
+
+        const card =
+            document.createElement(
+                "div"
+            );
+
+
+        card.className =
+            "card";
+
+
+        card.innerHTML = `
+
+        <div class="card-header">
+
+            <div>
+
+                <div class="device-id">
+                ${device.equipment_id}
+                </div>
+
+                <div class="meta">
+
+                ${device.name}
+                <br>
+
+                ${device.equipment_type}
+                •
+                ${device.location || "No location"}
+                •
+                ${device.protocol}
+
+                </div>
+
+            </div>
+
+
+            <div>
+
+                <div class="configured">
+                ● CONFIGURED
+                </div>
+
+                <div class="card-actions">
+
+                    <button
+                    class="secondary"
+                    onclick="editEquipment('${device.equipment_id}')">
+                    EDIT
+                    </button>
+
+                    <button
+                    class="danger"
+                    onclick="deleteEquipment('${device.equipment_id}')">
+                    DELETE
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="points">
+        ${pointHtml}
+        </div>
+
+        `;
+
+
+        equipmentGrid
+            .appendChild(card);
+    }
+
+
+    if (
+        equipment.length === 0
+    ) {
+
+        equipmentGrid.innerHTML =
+        `<div class="empty">
+        No equipment configured.
+        </div>`;
+    }
+
+
+    equipmentCount.textContent =
+        equipment.length;
+
+    pointCount.textContent =
+        pointTotal;
+
+    protocolCount.textContent =
+        protocols.size;
+}
+
+
+window.onclick =
+function(e) {
+
+    if (
+        e.target === modal
+    ) {
+        closeModal();
+    }
+};
+
+
+
+// =========================================================
+// LIVE OPERATIONS
+// =========================================================
+
+function esc(value) {
+    return String(value ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;");
+}
+
+
+function displayValue(point) {
+
+    if (
+        point.value === null ||
+        point.value === undefined
+    ) {
+        return "—";
+    }
+
+    const value =
+        typeof point.value === "number"
+        ? point.value.toFixed(2)
+        : point.value;
+
+    return `${value} ${point.unit || ""}`.trim();
+}
+
+
+async function loadOperations() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/status",
+                {cache:"no-store"}
+            );
+
+        if (!response.ok)
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+
+        const status =
+            await response.json();
+
+
+        // MQTT CONNECTION
+
+        const mqtt =
+            document.getElementById(
+                "mqttConnection"
+            );
+
+        if (status.mqtt_connected) {
+
+            mqtt.className =
+                "connection connected";
+
+            mqtt.textContent =
+                "● MQTT CONNECTED";
+
+        } else {
+
+            mqtt.className =
+                "connection disconnected";
+
+            mqtt.textContent =
+                "● MQTT DISCONNECTED";
+        }
+
+
+        const grid =
+            document.getElementById(
+                "operationsGrid"
+            );
+
+        grid.innerHTML = "";
+
+
+        let liveEquipment = 0;
+        let warningTotal = 0;
+        let criticalTotal = 0;
+        let alarmTotal = 0;
+
+        const activeAlarms = [];
+
+
+        for (
+            const device
+            of status.equipment || []
+        ) {
+
+            if (
+                device.telemetry_age_seconds
+                !== null
+            ) {
+                liveEquipment++;
+            }
+
+
+            let pointsHtml = "";
+
+
+            for (
+                const point
+                of device.points || []
+            ) {
+
+                if (
+                    point.severity ===
+                    "WARNING"
+                ) {
+                    warningTotal++;
+                }
+
+                if (
+                    point.severity ===
+                    "CRITICAL"
+                ) {
+                    criticalTotal++;
+                }
+
+                if (point.alarm) {
+
+                    alarmTotal++;
+
+                    activeAlarms.push({
+                        equipment_id:
+                            device.equipment_id,
+
+                        equipment_name:
+                            device.name,
+
+                        ...point
+                    });
+                }
+
+
+                pointsHtml += `
+                <div class="live-point">
+
+                    <div>
+                        <div class="point-name">
+                            ${esc(point.name)}
+                        </div>
+
+                        <div class="point-detail">
+                            ${
+                                point.message
+                                ? esc(point.message)
+                                : ""
+                            }
+                        </div>
+                    </div>
+
+                    <div class="live-value">
+                        ${esc(displayValue(point))}
+                    </div>
+
+                    <div class="point-state ${esc(point.severity)}">
+                        ${esc(point.severity)}
+                    </div>
+
+                </div>
+                `;
+            }
+
+
+            if (!pointsHtml) {
+
+                pointsHtml = `
+                <div class="point-detail"
+                     style="padding:12px 0">
+                    No live analog points available.
+                </div>
+                `;
+            }
+
+
+            const age =
+                device.telemetry_age_seconds;
+
+            const telemetryText =
+                age === null
+                ? `${device.protocol} • CONFIGURED / NOT LIVE`
+                : `${device.protocol} • LIVE • ${age}s ago`;
+
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+            card.className =
+                `ops-card ${device.severity}`;
+
+
+            card.innerHTML = `
+
+                <div class="ops-header">
+
+                    <div>
+
+                        <div class="ops-device">
+                            ${esc(device.equipment_id)}
+                        </div>
+
+                        <div class="meta">
+                            ${esc(device.name)}
+                            <br>
+                            ${esc(telemetryText)}
+                        </div>
+
+                    </div>
+
+                    <div class="severity ${esc(device.severity)}">
+                        ${esc(device.severity)}
+                    </div>
+
+                </div>
+
+                <div class="live-points">
+                    ${pointsHtml}
+                </div>
+            `;
+
+
+            grid.appendChild(card);
+        }
+
+
+        document.getElementById(
+            "liveEquipmentCount"
+        ).textContent =
+            liveEquipment;
+
+
+        document.getElementById(
+            "activeAlarmCount"
+        ).textContent =
+            alarmTotal;
+
+
+        document.getElementById(
+            "warningCount"
+        ).textContent =
+            warningTotal;
+
+
+        document.getElementById(
+            "criticalCount"
+        ).textContent =
+            criticalTotal;
+
+
+        renderAlarmConsole(
+            activeAlarms
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Operations refresh failed:",
+            error
+        );
+
+        const mqtt =
+            document.getElementById(
+                "mqttConnection"
+            );
+
+        if (mqtt) {
+
+            mqtt.className =
+                "connection disconnected";
+
+            mqtt.textContent =
+                "● CONTROL CENTER UNAVAILABLE";
+        }
+    }
+}
+
+
+function renderAlarmConsole(alarms) {
+
+    const list =
+        document.getElementById(
+            "alarmList"
+        );
+
+    const count =
+        document.getElementById(
+            "alarmConsoleCount"
+        );
+
+
+    count.textContent =
+        `${alarms.length} ACTIVE`;
+
+    count.className =
+        alarms.length
+        ? "alarm-count active"
+        : "alarm-count";
+
+
+    if (!alarms.length) {
+
+        list.innerHTML = `
+            <div class="no-alarms">
+                ● No active alarms
+            </div>
+        `;
+
+        return;
+    }
+
+
+    list.innerHTML =
+        alarms.map(alarm => {
+
+            const hh =
+                alarm.limits
+                ? alarm.limits.high_high
+                : null;
+
+            const ll =
+                alarm.limits
+                ? alarm.limits.low_low
+                : null;
+
+
+            let setpoint = "";
+
+            if (
+                alarm.condition ===
+                "HIGH-HIGH"
+            ) {
+                setpoint =
+                    `HH SETPOINT: ${hh} ${alarm.unit || ""}`;
+            }
+
+            else if (
+                alarm.condition ===
+                "LOW-LOW"
+            ) {
+                setpoint =
+                    `LL SETPOINT: ${ll} ${alarm.unit || ""}`;
+            }
+
+            else {
+                setpoint =
+                    alarm.message || "";
+            }
+
+
+            return `
+
+            <div class="alarm-item">
+
+                <div class="alarm-severity">
+                    ● ${esc(alarm.severity)}
+                </div>
+
+                <div>
+
+                    <strong>
+                        ${esc(alarm.equipment_id)}
+                        •
+                        ${esc(alarm.name)}
+                    </strong>
+
+                    <div class="point-detail">
+                        ${esc(alarm.equipment_name)}
+                        <br>
+                        ${esc(alarm.condition)}
+                        •
+                        ${esc(setpoint)}
+                    </div>
+
+                </div>
+
+                <div class="alarm-value">
+                    ${esc(displayValue(alarm))}
+                </div>
+
+            </div>
+            `;
+
+        }).join("");
+}
+
+
+// First load immediately
+loadOperations();
+
+// Refresh every 2 seconds
+setInterval(
+    loadOperations,
+    2000
+);
+
+
+loadEquipment();
+
+</script>
+
+</body>
+</html>

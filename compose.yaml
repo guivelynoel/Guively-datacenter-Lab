@@ -4,15 +4,12 @@ services:
     image: eclipse-mosquitto:2
     container_name: vdc-mqtt
     restart: unless-stopped
-
     ports:
       - "1883:1883"
-
     volumes:
       - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
-
     networks:
       - vdc-network
 
@@ -23,7 +20,72 @@ services:
     restart: unless-stopped
     depends_on:
       - mqtt
+    networks:
+      - vdc-network
 
+  influxdb:
+    image: influxdb:2
+    container_name: vdc-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    networks:
+      - vdc-network
+
+  telegraf:
+    image: telegraf:latest
+    container_name: vdc-telegraf
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+      - influxdb
+    environment:
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUX_ORG: ${INFLUXDB_ORG}
+      INFLUX_BUCKET: ${INFLUXDB_BUCKET}
+    volumes:
+      - ./monitoring/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    networks:
+      - vdc-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: vdc-grafana
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./dashboards/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - vdc-network
+
+  control-center:
+    build:
+      context: ./admin
+    container_name: vdc-control-center
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./admin/data:/data
     networks:
       - vdc-network
 
@@ -31,3 +93,8 @@ networks:
   vdc-network:
     name: vdc-lab-network
     driver: bridge
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+  grafana-data:

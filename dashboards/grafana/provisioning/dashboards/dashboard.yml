@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'Guively Virtual Data Center'
+    orgId: 1
+    folder: 'Virtual Data Center'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
