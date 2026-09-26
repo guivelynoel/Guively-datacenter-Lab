@@ -914,6 +914,13 @@ def delete_point(
     }
 
 
+@app.get("/scenarios", response_class=HTMLResponse)
+def scenario_control():
+    return Path(
+        "/app/app/templates/scenarios.html"
+    ).read_text()
+
+
 @app.get("/", response_class=HTMLResponse)
 def control_center():
 
