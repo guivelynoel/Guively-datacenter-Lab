@@ -18,8 +18,8 @@ from .models import Equipment, Point
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Guively Virtual Data Center Control Center",
-    version="0.4.0"
+    title="Virtual Critical Facilities Operations Lab",
+    version="0.5.0"
 )
 
 # ---------------------------------------------------------
@@ -28,6 +28,7 @@ app = FastAPI(
 
 telemetry_state = {}
 mqtt_connected = False
+mqtt_command_client = None
 
 FIELD_MAP = {
     "temperature": "temperature_c",
@@ -64,6 +65,11 @@ class EquipmentUpdate(BaseModel):
     location: str = ""
     protocol: str = "MQTT"
     enabled: bool = True
+
+
+class ScenarioCommand(BaseModel):
+    equipment_id: str
+    scenario: str
 
 
 class PointCreate(BaseModel):
@@ -148,6 +154,8 @@ def on_message(client, userdata, msg):
 
 def mqtt_worker():
 
+    global mqtt_command_client
+
     client = mqtt.Client(
         mqtt.CallbackAPIVersion.VERSION2,
         client_id="vdc-control-center"
@@ -156,6 +164,7 @@ def mqtt_worker():
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_message = on_message
+    mqtt_command_client = client
 
     while True:
 
@@ -496,6 +505,119 @@ def active_alarms(
 
 
 # ---------------------------------------------------------
+# V2 SCENARIO CONTROL + TRAINING GUIDANCE
+# ---------------------------------------------------------
+
+SCENARIO_LIBRARY = {
+    "MOTOR-01": {
+        "NORMAL": {
+            "label": "Restore Normal",
+            "severity": "NORMAL",
+            "summary": "Return the simulated motor to its normal operating condition."
+        },
+        "OVERHEAT": {
+            "label": "Motor Overheat",
+            "severity": "CRITICAL",
+            "summary": "Motor, winding and bearing temperatures rise while related electrical/mechanical values change."
+        },
+        "OVERCURRENT": {
+            "label": "Motor Overcurrent",
+            "severity": "CRITICAL",
+            "summary": "Motor current rises above its configured operating range.",
+            "possible_causes": [
+                "Excessive mechanical load",
+                "Bearing or driven-equipment problem",
+                "Motor or VFD abnormal condition",
+                "Supply-voltage or phase problem"
+            ],
+            "recognize": [
+                "Current rises toward the High / High-High thresholds",
+                "Power and winding temperature may rise",
+                "RPM or other related values may change depending on the cause"
+            ],
+            "response_steps": [
+                "Confirm the alarm and identify the affected equipment.",
+                "Review current and recent trends plus related alarms.",
+                "Check motor, VFD and driven-equipment status for abnormal indications.",
+                "Follow the approved site and OEM procedure before operating or resetting equipment.",
+                "Escalate if the condition persists, equipment protection operates, or critical service is at risk.",
+                "After recovery, verify current, temperature, speed and alarms return to expected conditions."
+            ],
+            "procedure_note": "Training guidance only. Real response steps, limits and emergency actions must follow the site-specific SOP/EOP and manufacturer documentation."
+        },
+        "UNDERVOLTAGE": {
+            "label": "Motor Undervoltage",
+            "severity": "WARNING",
+            "summary": "Motor supply voltage falls below its configured operating range."
+        },
+        "BEARING_FAULT": {
+            "label": "Bearing Fault",
+            "severity": "CRITICAL",
+            "summary": "Bearing temperature and vibration increase together."
+        },
+        "VIBRATION": {
+            "label": "High Vibration",
+            "severity": "WARNING",
+            "summary": "Motor vibration rises above its configured limits."
+        },
+        "STOPPED": {
+            "label": "Motor Stopped",
+            "severity": "WARNING",
+            "summary": "The simulated motor ramps toward a stopped state."
+        }
+    }
+}
+
+
+@app.get("/api/scenarios")
+def list_scenarios():
+    return SCENARIO_LIBRARY
+
+
+@app.post("/api/scenario/start")
+def start_scenario(command: ScenarioCommand):
+    equipment_id = command.equipment_id.strip().upper()
+    scenario = command.scenario.strip().upper()
+
+    equipment_scenarios = SCENARIO_LIBRARY.get(equipment_id)
+
+    if not equipment_scenarios:
+        raise HTTPException(
+            status_code=404,
+            detail="No scenario profile is configured for this equipment."
+        )
+
+    if scenario not in equipment_scenarios:
+        raise HTTPException(
+            status_code=400,
+            detail="Scenario is not available for this equipment."
+        )
+
+    if not mqtt_connected or mqtt_command_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="MQTT is not connected."
+        )
+
+    topic = f"dc1/mechanical/motor/{equipment_id}/command"
+    info = mqtt_command_client.publish(topic, scenario)
+
+    if info.rc != mqtt.MQTT_ERR_SUCCESS:
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to publish scenario command."
+        )
+
+    return {
+        "status": "started",
+        "equipment_id": equipment_id,
+        "scenario": scenario,
+        "topic": topic,
+        "training": equipment_scenarios[scenario]
+    }
+
+
+# ---------------------------------------------------------
 # EQUIPMENT CRUD
 # ---------------------------------------------------------
 
@@ -505,7 +627,7 @@ def health():
     return {
         "status": "healthy",
         "service": "vdc-control-center",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "mqtt_connected": mqtt_connected
     }
 
