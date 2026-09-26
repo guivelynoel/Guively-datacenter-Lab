@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scenario Control — Virtual Critical Facilities Operations Lab</title>
+<style>
+:root{
+  --green:#1f7a4f;
+  --green-2:#eaf6ef;
+  --green-3:#cfe9d9;
+  --ink:#18211b;
+  --muted:#66736b;
+  --line:#dfe6e1;
+  --bg:#f7faf8;
+  --card:#ffffff;
+  --warn:#a96b00;
+  --warn-bg:#fff7df;
+  --critical:#b42318;
+  --critical-bg:#fff0ee;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+}
+header{
+  background:#fff;
+  border-bottom:1px solid var(--line);
+  padding:20px 28px;
+}
+.header-inner{
+  max-width:1200px;
+  margin:auto;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+}
+.brand h1{margin:0;font-size:23px}
+.brand p{margin:5px 0 0;color:var(--muted);font-size:13px}
+.back{
+  color:var(--green);
+  text-decoration:none;
+  font-weight:700;
+}
+main{
+  max-width:1200px;
+  margin:0 auto;
+  padding:28px;
+}
+.hero{
+  background:linear-gradient(135deg,#fff,var(--green-2));
+  border:1px solid var(--green-3);
+  border-radius:16px;
+  padding:24px;
+  margin-bottom:20px;
+}
+.hero h2{margin:0 0 7px;font-size:28px}
+.hero p{margin:0;color:var(--muted);line-height:1.5}
+.layout{
+  display:grid;
+  grid-template-columns:minmax(320px,.85fr) minmax(420px,1.15fr);
+  gap:18px;
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:20px;
+}
+.card h3{margin:0 0 6px}
+.small{color:var(--muted);font-size:13px;line-height:1.5}
+label{
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  margin:18px 0 7px;
+}
+select{
+  width:100%;
+  border:1px solid #cfd8d1;
+  border-radius:9px;
+  padding:12px;
+  background:#fff;
+  font-size:14px;
+  color:var(--ink);
+}
+.actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:18px;
+}
+button{
+  border:0;
+  border-radius:9px;
+  padding:12px 14px;
+  font-weight:700;
+  cursor:pointer;
+  font-size:14px;
+}
+.start{background:var(--green);color:#fff}
+.restore{background:#eef2ef;color:#263229}
+button:disabled{opacity:.55;cursor:not-allowed}
+.status{
+  margin-top:16px;
+  border-radius:10px;
+  padding:12px 14px;
+  background:#f4f7f5;
+  color:var(--muted);
+  font-size:13px;
+}
+.status.ok{background:var(--green-2);color:#155e3b}
+.status.error{background:var(--critical-bg);color:var(--critical)}
+.training-empty{
+  min-height:390px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  color:var(--muted);
+  border:1px dashed #cad5cd;
+  border-radius:12px;
+  padding:30px;
+}
+.badge{
+  display:inline-block;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:11px;
+  font-weight:800;
+  margin-bottom:12px;
+}
+.NORMAL{background:var(--green-2);color:#155e3b}
+.WARNING{background:var(--warn-bg);color:var(--warn)}
+.CRITICAL{background:var(--critical-bg);color:var(--critical)}
+.section{
+  margin-top:20px;
+  padding-top:16px;
+  border-top:1px solid var(--line);
+}
+.section h4{margin:0 0 9px}
+ul,ol{margin:8px 0 0;padding-left:22px}
+li{margin:7px 0;line-height:1.45}
+.note{
+  margin-top:18px;
+  background:#f8faf8;
+  border-left:4px solid var(--green);
+  padding:12px 14px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.flow{
+  margin-top:18px;
+  color:var(--green);
+  font-weight:800;
+  text-align:center;
+  font-size:13px;
+}
+@media(max-width:850px){
+  .layout{grid-template-columns:1fr}
+  .header-inner{align-items:flex-start;flex-direction:column}
+  main{padding:18px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <h1>Virtual Critical Facilities Operations Lab</h1>
+      <p>Scenario Control • V2 Training Workspace</p>
+    </div>
+    <a class="back" href="/">← Back to Operations</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h2>Scenario Control</h2>
+    <p>Inject a training fault, observe the equipment response, and learn how to recognize, investigate and recover from the condition.</p>
+    <div class="flow">See it → Recognize it → Understand it → Troubleshoot it → Verify recovery</div>
+  </section>
+
+  <div class="layout">
+    <section class="card">
+      <h3>Start a Scenario</h3>
+      <div class="small">No command line required. Choose the equipment and fault, then start the simulation.</div>
+
+      <label for="equipmentSelect">Equipment</label>
+      <select id="equipmentSelect"></select>
+
+      <label for="scenarioSelect">Fault / Scenario</label>
+      <select id="scenarioSelect"></select>
+
+      <div class="actions">
+        <button class="start" id="startButton" onclick="startSelectedScenario()">START SCENARIO</button>
+        <button class="restore" onclick="restoreNormal()">RESTORE NORMAL</button>
+      </div>
+
+      <div id="statusBox" class="status">Loading available scenarios…</div>
+    </section>
+
+    <section class="card">
+      <h3>Fault Learning</h3>
+      <div class="small">Training guidance appears here when a scenario is selected.</div>
+
+      <div id="trainingPanel" class="training-empty">
+        Select a fault to see what it means, how to recognize it, possible causes and response guidance.
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+let scenarioLibrary = {};
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+async function loadScenarios(){
+  try{
+    const response = await fetch("/api/scenarios");
+    if(!response.ok) throw new Error("Unable to load scenarios.");
+    scenarioLibrary = await response.json();
+
+    const equipment = document.getElementById("equipmentSelect");
+    equipment.innerHTML = "";
+
+    Object.keys(scenarioLibrary).forEach(id => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = id;
+      equipment.appendChild(option);
+    });
+
+    populateScenarioSelect();
+    document.getElementById("statusBox").textContent = "Ready.";
+  }catch(error){
+    showStatus(error.message, "error");
+  }
+}
+
+function populateScenarioSelect(){
+  const equipmentId = document.getElementById("equipmentSelect").value;
+  const select = document.getElementById("scenarioSelect");
+  const scenarios = scenarioLibrary[equipmentId] || {};
+
+  select.innerHTML = "";
+
+  Object.entries(scenarios)
+    .filter(([key]) => key !== "NORMAL")
+    .forEach(([key, data]) => {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = data.label || key;
+      select.appendChild(option);
+    });
+
+  renderTraining();
+}
+
+function renderTraining(){
+  const equipmentId = document.getElementById("equipmentSelect").value;
+  const scenario = document.getElementById("scenarioSelect").value;
+  const data = scenarioLibrary[equipmentId]?.[scenario];
+
+  if(!data){
+    document.getElementById("trainingPanel").className = "training-empty";
+    document.getElementById("trainingPanel").innerHTML = "Select a fault to view the training guidance.";
+    return;
+  }
+
+  const causes = (data.possible_causes || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+  const recognize = (data.recognize || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+  const steps = (data.response_steps || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+
+  let html = `
+    <div>
+      <span class="badge ${escapeHtml(data.severity || "WARNING")}">${escapeHtml(data.severity || "TRAINING")}</span>
+      <h3>${escapeHtml(data.label || scenario)}</h3>
+      <p class="small">${escapeHtml(data.summary || "")}</p>
+  `;
+
+  if(recognize){
+    html += `<div class="section"><h4>How to recognize it</h4><ul>${recognize}</ul></div>`;
+  }
+  if(causes){
+    html += `<div class="section"><h4>Possible causes</h4><ul>${causes}</ul></div>`;
+  }
+  if(steps){
+    html += `<div class="section"><h4>Response guidance</h4><ol>${steps}</ol></div>`;
+  }
+  if(data.procedure_note){
+    html += `<div class="note">${escapeHtml(data.procedure_note)}</div>`;
+  }
+
+  html += "</div>";
+
+  const panel = document.getElementById("trainingPanel");
+  panel.className = "";
+  panel.innerHTML = html;
+}
+
+async function sendScenario(scenario){
+  const equipmentId = document.getElementById("equipmentSelect").value;
+  showStatus(`Sending ${scenario} to ${equipmentId}…`);
+
+  try{
+    const response = await fetch("/api/scenario/start",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        equipment_id:equipmentId,
+        scenario:scenario
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      throw new Error(data.detail || "Scenario command failed.");
+    }
+
+    showStatus(`${equipmentId}: ${scenario} started successfully.`, "ok");
+  }catch(error){
+    showStatus(error.message, "error");
+  }
+}
+
+function startSelectedScenario(){
+  sendScenario(document.getElementById("scenarioSelect").value);
+}
+
+function restoreNormal(){
+  sendScenario("NORMAL");
+}
+
+function showStatus(message,type=""){
+  const box = document.getElementById("statusBox");
+  box.className = "status" + (type ? " " + type : "");
+  box.textContent = message;
+}
+
+document.getElementById("equipmentSelect").addEventListener("change", populateScenarioSelect);
+document.getElementById("scenarioSelect").addEventListener("change", renderTraining);
+
+loadScenarios();
+</script>
+</body>
+</html>
