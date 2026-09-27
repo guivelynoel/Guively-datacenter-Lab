@@ -2162,6 +2162,488 @@ setInterval(
 
 loadEquipment();
 
+
+
+/* V2_WORKFLOW_SCRIPT */
+let v2Alarms = [];
+let v2Cases = [];
+let v2CurrentCase = null;
+
+function v2Api(url, options) {
+    options = options || {};
+    options.headers = Object.assign({"Content-Type":"application/json"}, options.headers || {});
+    return fetch(url, options).then(async function(response) {
+        let data = {};
+        try { data = await response.json(); } catch (_) {}
+        if (!response.ok) throw new Error(data.detail || "Request failed");
+        return data;
+    });
+}
+
+function v2Toast(message) {
+    const el = document.createElement("div");
+    el.textContent = message;
+    el.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:250;background:#111820;color:#e8edf2;border:1px solid #35414d;padding:11px 14px;border-radius:7px";
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 2200);
+}
+
+function v2FmtTime(ts) {
+    return ts ? new Date(ts * 1000).toLocaleString() : "—";
+}
+
+function v2ClosePanel(id) {
+    document.getElementById(id).classList.remove("open");
+}
+
+function setV2View(mode) {
+    const operator = mode === "operator";
+    document.querySelector(".operations").style.display = operator ? "block" : "none";
+    document.getElementById("registryToolbar").style.display = operator ? "none" : "flex";
+    document.getElementById("equipmentGrid").style.display = operator ? "none" : "grid";
+    document.getElementById("adminArchitecture").style.display = operator ? "none" : "block";
+    document.getElementById("incidentInjector").style.display = operator ? "none" : "block";
+    document.getElementById("operatorModeButton").className = operator ? "primary active" : "secondary";
+    document.getElementById("adminModeButton").className = operator ? "secondary" : "primary active";
+}
+
+function renderAlarmConsole(alarms) {
+    v2Alarms = alarms || [];
+    const list = document.getElementById("alarmList");
+    const count = document.getElementById("alarmConsoleCount");
+    count.textContent = v2Alarms.length + " ACTIVE";
+    count.className = v2Alarms.length ? "alarm-count active" : "alarm-count";
+
+    if (!v2Alarms.length) {
+        list.innerHTML = '<div class="no-alarms">● No active alarms. Conditions are within configured limits.</div>';
+        return;
+    }
+
+    list.innerHTML = v2Alarms.map(function(a) {
+        const ack = a.acknowledged_at ? "✓ ACKNOWLEDGED" : "NOT ACKNOWLEDGED";
+        const threshold = a.threshold === null || a.threshold === undefined
+            ? "configured limit"
+            : a.threshold + " " + (a.unit || "");
+
+        return '<div class="alarm-item">' +
+            '<div><div class="alarm-severity">● ' + esc(a.severity) + '</div>' +
+            '<div class="point-detail">ID ' + esc(a.alarm_id) + '<br>' + ack + '</div></div>' +
+            '<div><strong>' + esc(a.equipment_id) + ' • ' + esc(a.name) + '</strong>' +
+            '<div class="point-detail">' + esc(a.equipment_name) + '<br>' +
+            esc(a.condition) + ' • threshold ' + esc(threshold) + '<br>First seen ' +
+            esc(v2FmtTime(a.first_seen)) + '</div>' +
+            '<div class="alarm-actions">' +
+            '<button class="secondary" data-v2-action="ack" data-alarm="' + esc(a.alarm_id) + '">ACKNOWLEDGE</button>' +
+            '<button class="secondary" data-v2-action="investigate" data-alarm="' + esc(a.alarm_id) + '">INVESTIGATE</button>' +
+            '<button class="secondary" data-v2-action="trend" data-eq="' + esc(a.equipment_id) + '" data-key="' + esc(a.key) + '" data-name="' + esc(a.name) + '" data-unit="' + esc(a.unit || "") + '">VIEW TREND</button>' +
+            '<button class="secondary" data-v2-action="equipment" data-eq="' + esc(a.equipment_id) + '">VIEW EQUIPMENT</button>' +
+            '<button class="primary" data-v2-action="case" data-alarm="' + esc(a.alarm_id) + '">CREATE CASE</button>' +
+            '</div></div><div class="alarm-value">' + esc(displayValue(a)) + '</div></div>';
+    }).join("");
+}
+
+async function v2AckAlarm(alarmId) {
+    try {
+        await v2Api("/api/alarms/" + alarmId + "/acknowledge", {method:"POST"});
+        v2Toast("Alarm acknowledged");
+        await loadOperations();
+    } catch (error) {
+        v2Toast(error.message);
+    }
+}
+
+function v2InspectAlarm(alarmId) {
+    const a = v2Alarms.find(function(x){ return x.alarm_id === alarmId; });
+    if (!a) return;
+
+    document.getElementById("v2CaseWorkspace").innerHTML =
+        '<div class="case-head"><div><strong>Alarm Investigation</strong>' +
+        '<div class="subtitle">Review facts before creating the case. Root cause is hidden.</div></div></div>' +
+        '<div class="case-body"><div class="case-snapshot">' +
+        '<div><label>ASSET</label><strong>' + esc(a.equipment_id) + '</strong></div>' +
+        '<div><label>POINT</label><strong>' + esc(a.name) + '</strong></div>' +
+        '<div><label>SEVERITY</label><strong>' + esc(a.severity) + '</strong></div>' +
+        '<div><label>CONDITION</label><strong>' + esc(a.condition) + '</strong></div></div>' +
+        '<div class="inspect-preview"><strong>Initial facts</strong>' +
+        '<div class="point-detail" style="margin-top:8px">Current value: ' + esc(displayValue(a)) +
+        '<br>Threshold: ' + esc(a.threshold === null || a.threshold === undefined ? "—" : a.threshold + " " + (a.unit || "")) +
+        '<br>First seen: ' + esc(v2FmtTime(a.first_seen)) + '</div>' +
+        '<div class="alarm-actions">' +
+        '<button class="secondary" data-v2-action="trend" data-eq="' + esc(a.equipment_id) + '" data-key="' + esc(a.key) + '" data-name="' + esc(a.name) + '" data-unit="' + esc(a.unit || "") + '">VIEW TREND</button>' +
+        '<button class="secondary" data-v2-action="equipment" data-eq="' + esc(a.equipment_id) + '">VIEW EQUIPMENT</button>' +
+        '<button class="primary" data-v2-action="case" data-alarm="' + esc(a.alarm_id) + '">CREATE CASE</button>' +
+        '</div></div></div>';
+
+    document.getElementById("v2CaseWorkspace").scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function v2FocusEquipment(equipmentId) {
+    const cards = Array.from(document.querySelectorAll(".ops-card"));
+    const card = cards.find(function(el){ return el.textContent.indexOf(equipmentId) !== -1; });
+    if (card) {
+        card.scrollIntoView({behavior:"smooth", block:"center"});
+        card.style.boxShadow = "0 0 0 3px #648fe8";
+        setTimeout(function(){ card.style.boxShadow = ""; }, 1500);
+    }
+    if (v2CurrentCase) v2RecordViewed("Equipment: " + equipmentId);
+}
+
+async function v2ShowTrend(equipmentId, pointKey, pointName, unit) {
+    document.getElementById("v2TrendTitle").textContent = equipmentId + " • " + pointName;
+    document.getElementById("v2TrendSub").textContent = "Live telemetry history • " + (unit || "no unit");
+    document.getElementById("v2TrendChart").textContent = "Loading trend…";
+    document.getElementById("v2TrendModal").classList.add("open");
+
+    try {
+        const data = await v2Api("/api/trends/" + encodeURIComponent(equipmentId) + "?point=" + encodeURIComponent(pointKey) + "&limit=120");
+        v2DrawTrend(data.series || [], unit);
+        if (v2CurrentCase && v2CurrentCase.equipment_id === equipmentId) v2RecordViewed("Trend: " + pointName);
+    } catch (error) {
+        document.getElementById("v2TrendChart").textContent = error.message;
+    }
+}
+
+function v2DrawTrend(series, unit) {
+    const target = document.getElementById("v2TrendChart");
+    if (!series.length) {
+        target.innerHTML = '<div class="no-alarms">No samples yet. Let the simulator run for a few seconds.</div>';
+        return;
+    }
+
+    const values = series.map(function(s){ return s.value; });
+    const min = Math.min.apply(null, values);
+    const max = Math.max.apply(null, values);
+    const span = Math.max(max - min, 0.0001);
+    const width = 900, height = 240, pad = 24;
+
+    const points = series.map(function(s, index) {
+        const x = pad + index * (width - 2 * pad) / Math.max(series.length - 1, 1);
+        const y = height - pad - (s.value - min) * (height - 2 * pad) / span;
+        return x.toFixed(1) + "," + y.toFixed(1);
+    }).join(" ");
+
+    target.innerHTML =
+        '<svg viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none">' +
+        '<line x1="' + pad + '" y1="' + (height-pad) + '" x2="' + (width-pad) + '" y2="' + (height-pad) + '" stroke="#29333e"></line>' +
+        '<polyline fill="none" stroke="#6ea8fe" stroke-width="3" points="' + points + '"></polyline>' +
+        '<text x="' + (pad+4) + '" y="' + (pad+12) + '" fill="#8996a5" font-size="11">MAX ' + max.toFixed(2) + ' ' + esc(unit || "") + '</text>' +
+        '<text x="' + (pad+4) + '" y="' + (height-pad-6) + '" fill="#8996a5" font-size="11">MIN ' + min.toFixed(2) + ' ' + esc(unit || "") + '</text></svg>';
+}
+
+async function v2CreateCase(alarmId) {
+    try {
+        const created = await v2Api("/api/alarms/" + alarmId + "/cases", {method:"POST"});
+        v2Toast(created.case_number + " ready");
+        await v2LoadCases();
+        await v2OpenCase(created.id);
+    } catch (error) {
+        v2Toast(error.message);
+    }
+}
+
+async function v2LoadCases() {
+    try {
+        v2Cases = await v2Api("/api/cases");
+        v2RenderCaseList();
+    } catch (error) {
+        console.error("Case load failed:", error);
+    }
+}
+
+function v2RenderCaseList() {
+    const list = document.getElementById("v2CaseList");
+    if (!v2Cases.length) {
+        list.innerHTML = '<div class="no-alarms">No cases yet.</div>';
+        return;
+    }
+
+    list.innerHTML = v2Cases.map(function(c) {
+        const active = v2CurrentCase && v2CurrentCase.id === c.id ? " active" : "";
+        return '<div class="case-list-item' + active + '" data-v2-case="' + c.id + '">' +
+            '<strong>' + esc(c.case_number) + ' • ' + esc(c.status) + '</strong>' +
+            '<div class="meta">' + esc(c.equipment_id) + ' • ' + esc(c.point_name) + '<br>' +
+            esc(c.severity) + ' ' + esc(c.condition) + '<br>' + esc(v2FmtTime(c.opened_at)) + '</div></div>';
+    }).join("");
+}
+
+function v2BulletText(items) {
+    return (items || []).map(function(x){ return "• " + x; }).join("\n");
+}
+
+function v2ParseBullets(value) {
+    return value.split("\n").map(function(line){
+        return line.replace(/^[•-]\s*/, "").trim();
+    }).filter(Boolean);
+}
+
+function v2StepDone(c, key) {
+    if (key === "Alarm") return true;
+    if (key === "Impact") return c.impact && c.impact.length;
+    if (key === "Evidence") return c.evidence && c.evidence.length;
+    if (key === "Diagnosis") return c.diagnosis && c.diagnosis.trim();
+    if (key === "Procedure") return c.procedure_checks && c.procedure_checks.length;
+    if (key === "Action") return c.action_escalation && c.action_escalation.length;
+    if (key === "Work Order") return !!c.work_order;
+    if (key === "Recovery") return c.recovery && c.recovery.length;
+    if (key === "Report") return c.status === "CLOSED";
+    return false;
+}
+
+async function v2OpenCase(caseId) {
+    try {
+        v2CurrentCase = await v2Api("/api/cases/" + caseId);
+        v2RenderCaseList();
+        v2RenderCaseWorkspace();
+    } catch (error) {
+        v2Toast(error.message);
+    }
+}
+
+function v2Li(items) {
+    return (items || []).map(function(x){ return "<li>" + esc(x) + "</li>"; }).join("");
+}
+
+function v2RenderCaseWorkspace() {
+    const c = v2CurrentCase;
+    if (!c) return;
+
+    const steps = ["Alarm","Impact","Evidence","Diagnosis","Procedure","Action","Work Order","Recovery","Report"];
+    const p = c.procedure || {};
+    const stepHtml = steps.map(function(step) {
+        const done = v2StepDone(c, step);
+        return '<span class="workflow-step ' + (done ? "done" : "") + '">' + (done ? "✓ " : "") + esc(step) + '</span>';
+    }).join("");
+
+    const viewed = (c.reviewed_items || []).length
+        ? c.reviewed_items.map(function(item){ return '<span class="viewed-chip">✓ Viewed ' + esc(item) + '</span>'; }).join("")
+        : '<span class="point-detail">Nothing recorded yet.</span>';
+
+    document.getElementById("v2CaseWorkspace").innerHTML =
+        '<div class="case-head"><div><strong>' + esc(c.case_number) + ' • ' + esc(c.status) + '</strong>' +
+        '<div class="subtitle">' + esc(c.equipment_id) + ' • ' + esc(c.point_name) + ' • opened ' + esc(v2FmtTime(c.opened_at)) + '</div></div>' +
+        '<div class="case-actions"><button class="secondary" data-v2-action="case-trend">TREND</button>' +
+        '<button class="secondary" data-v2-action="procedure">PROCEDURE</button>' +
+        '<button class="secondary" data-v2-action="work-order">WORK ORDER</button>' +
+        '<button class="secondary" data-v2-action="report">REPORT</button></div></div>' +
+        '<div class="case-body"><div class="workflow-steps">' + stepHtml + '</div>' +
+        '<div class="case-snapshot">' +
+        '<div><label>ALARM</label><strong>' + esc(c.severity) + ' • ' + esc(c.condition) + '</strong></div>' +
+        '<div><label>VALUE</label><strong>' + esc(c.alarm_value) + ' ' + esc(c.alarm_unit) + '</strong></div>' +
+        '<div><label>THRESHOLD</label><strong>' + esc(c.alarm_threshold === null ? "—" : c.alarm_threshold) + ' ' + esc(c.alarm_unit) + '</strong></div>' +
+        '<div><label>ACKNOWLEDGED</label><strong>' + esc(v2FmtTime(c.acknowledged_at)) + '</strong></div></div>' +
+        '<div class="procedure-card"><h4>INITIAL EVIDENCE</h4><ul>' + v2Li(c.initial_evidence) + '</ul></div>' +
+        '<div class="case-form" style="margin-top:12px">' +
+        '<div><label>Impact — editable starter bullets</label><textarea id="v2CaseImpact">' + esc(v2BulletText(c.impact)) + '</textarea></div>' +
+        '<div><label>Evidence — edit / delete / add</label><textarea id="v2CaseEvidence">' + esc(v2BulletText(c.evidence)) + '</textarea></div>' +
+        '<div class="wide"><label>Diagnosis — mostly yours</label><textarea id="v2CaseDiagnosis" placeholder="What do you think is happening, and why?">' + esc(c.diagnosis || "") + '</textarea></div>' +
+        '<div><label>Procedure Checks</label><textarea id="v2CaseProcedure">' + esc(v2BulletText(c.procedure_checks)) + '</textarea></div>' +
+        '<div><label>Action / Escalation</label><textarea id="v2CaseAction">' + esc(v2BulletText(c.action_escalation)) + '</textarea></div>' +
+        '<div><label>Recovery Verification</label><textarea id="v2CaseRecovery" placeholder="Verify alarm cleared, values stabilized, redundancy normal, no new alarms.">' + esc(v2BulletText(c.recovery)) + '</textarea></div>' +
+        '<div><label>Lessons Learned</label><textarea id="v2CaseLessons" placeholder="What would you check faster next time?">' + esc(v2BulletText(c.lessons_learned)) + '</textarea></div></div>' +
+        '<div id="v2ProcedureBlock" class="procedure-grid">' +
+        '<div class="procedure-card"><h4>CONDITION</h4><p>' + esc(p.condition || "") + '</p><h4>RISK</h4><p>' + esc(p.risk || "") + '</p></div>' +
+        '<div class="procedure-card"><h4>IMMEDIATE CHECKS</h4><ul>' + v2Li(p.immediate_checks) + '</ul></div>' +
+        '<div class="procedure-card"><h4>SAFETY / PPE</h4><ul>' + v2Li(p.safety_ppe) + '</ul></div>' +
+        '<div class="procedure-card"><h4>ESCALATE WHEN</h4><ul>' + v2Li(p.escalate_when) + '</ul><p><strong>Next:</strong> ' + esc(p.next_step || "") + '</p></div></div>' +
+        '<div style="margin-top:14px"><label>REVIEWED ITEMS</label><div class="viewed-items">' + viewed + '</div></div>' +
+        '<div class="case-actions" style="margin-top:18px"><button class="primary" data-v2-action="save-case">SAVE CASE</button>' +
+        '<button class="secondary" data-v2-action="work-order">WORK ORDER</button>' +
+        '<button class="primary" data-v2-action="close-case">VERIFY & CLOSE CASE</button></div></div>';
+}
+
+async function v2SaveCase() {
+    if (!v2CurrentCase) return;
+    const payload = {
+        impact: v2ParseBullets(document.getElementById("v2CaseImpact").value),
+        evidence: v2ParseBullets(document.getElementById("v2CaseEvidence").value),
+        diagnosis: document.getElementById("v2CaseDiagnosis").value.trim(),
+        procedure_checks: v2ParseBullets(document.getElementById("v2CaseProcedure").value),
+        action_escalation: v2ParseBullets(document.getElementById("v2CaseAction").value),
+        recovery: v2ParseBullets(document.getElementById("v2CaseRecovery").value),
+        lessons_learned: v2ParseBullets(document.getElementById("v2CaseLessons").value),
+        reviewed_items: v2CurrentCase.reviewed_items || []
+    };
+    try {
+        v2CurrentCase = await v2Api("/api/cases/" + v2CurrentCase.id, {method:"PUT", body:JSON.stringify(payload)});
+        v2Toast("Case saved");
+        await v2LoadCases();
+        v2RenderCaseWorkspace();
+    } catch (error) {
+        v2Toast(error.message);
+    }
+}
+
+async function v2RecordViewed(item) {
+    if (!v2CurrentCase) return;
+    const items = v2CurrentCase.reviewed_items || [];
+    if (items.indexOf(item) !== -1) return;
+    v2CurrentCase.reviewed_items = items.concat([item]);
+    try {
+        await v2Api("/api/cases/" + v2CurrentCase.id, {method:"PUT", body:JSON.stringify({reviewed_items:v2CurrentCase.reviewed_items})});
+        v2RenderCaseWorkspace();
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function v2OpenWorkOrder() {
+    if (!v2CurrentCase) return;
+    const w = v2CurrentCase.work_order || {};
+    document.getElementById("v2WoDisposition").value = w.disposition || "CREATE";
+    document.getElementById("v2WoExternal").value = w.external_reference || "";
+    document.getElementById("v2WoPriority").value = w.priority || "P3";
+    document.getElementById("v2WoGroup").value = w.assigned_group || "Facilities";
+    document.getElementById("v2WoStatus").value = w.status || "OPEN";
+    document.getElementById("v2WoImpact").value = w.impact || "";
+    document.getElementById("v2WoRequested").value = w.requested_work || "Inspect affected equipment.\nVerify command versus actual condition.\nRecord readings before and after service.";
+    document.getElementById("v2WoNotes").value = w.reason || w.notes || "";
+    v2UpdateWoFields();
+    document.getElementById("v2WorkOrderModal").classList.add("open");
+}
+
+function v2UpdateWoFields() {
+    const d = document.getElementById("v2WoDisposition").value;
+    document.getElementById("v2WoExternal").disabled = d !== "LINK";
+    document.getElementById("v2WoRequested").disabled = d === "NONE";
+}
+
+async function v2SaveWorkOrder() {
+    if (!v2CurrentCase) return;
+    const d = document.getElementById("v2WoDisposition").value;
+    const note = document.getElementById("v2WoNotes").value.trim();
+    const payload = {
+        disposition:d,
+        external_reference:document.getElementById("v2WoExternal").value.trim() || null,
+        priority:document.getElementById("v2WoPriority").value,
+        assigned_group:document.getElementById("v2WoGroup").value.trim(),
+        status:document.getElementById("v2WoStatus").value,
+        impact:document.getElementById("v2WoImpact").value.trim(),
+        requested_work:document.getElementById("v2WoRequested").value.trim(),
+        notes:d === "NONE" ? "" : note,
+        reason:d === "NONE" ? note : ""
+    };
+    try {
+        await v2Api("/api/cases/" + v2CurrentCase.id + "/work-order", {method:"POST", body:JSON.stringify(payload)});
+        v2ClosePanel("v2WorkOrderModal");
+        v2Toast("Work-order disposition saved");
+        await v2OpenCase(v2CurrentCase.id);
+        await v2LoadCases();
+    } catch (error) {
+        v2Toast(error.message);
+    }
+}
+
+async function v2CloseCase() {
+    if (!v2CurrentCase) return;
+    await v2SaveCase();
+    try {
+        v2CurrentCase = await v2Api("/api/cases/" + v2CurrentCase.id + "/close", {method:"POST"});
+        v2Toast("Case closed after recovery verification");
+        await v2LoadCases();
+        await v2OpenCase(v2CurrentCase.id);
+    } catch (error) {
+        v2Toast(error.message);
+    }
+}
+
+function v2Minutes(start, end) {
+    if (!start || !end) return "—";
+    return Math.max(0, Math.round((end - start) / 60));
+}
+
+function v2ReportSection(title, items) {
+    const body = items && items.length
+        ? "<ul>" + items.map(function(x){ return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>"
+        : "<p>Not documented.</p>";
+    return '<div class="v2-report-card"><h4>' + esc(title) + '</h4>' + body + '</div>';
+}
+
+function v2ShowReport() {
+    const c = v2CurrentCase;
+    if (!c) return;
+    const w = c.work_order;
+    const finish = c.closed_at || Math.floor(Date.now() / 1000);
+    const ackMinutes = v2Minutes(c.opened_at, c.acknowledged_at);
+    const ackResult = typeof ackMinutes === "number" && ackMinutes <= 5 ? "✓ MET" : "⚠ REVIEW";
+
+    let html = '<div class="v2-report-card"><h4>' + esc(c.case_number) + ' • Incident Investigation Report</h4>' +
+        '<p><strong>Asset:</strong> ' + esc(c.equipment_id) + ' — ' + esc(c.equipment_name) + '<br>' +
+        '<strong>Alarm:</strong> ' + esc(c.point_name) + ' • ' + esc(c.severity) + ' ' + esc(c.condition) +
+        ' • ' + esc(c.alarm_value) + ' ' + esc(c.alarm_unit) + '<br>' +
+        '<strong>Opened:</strong> ' + esc(v2FmtTime(c.opened_at)) + ' • <strong>Closed:</strong> ' + esc(v2FmtTime(c.closed_at)) + '</p></div>' +
+        '<div class="v2-report-card"><h4>Training Response Targets</h4><p>Training targets only — not universal site SLAs.</p><ul>' +
+        '<li>Acknowledge: ' + esc(ackMinutes) + ' min ' + ackResult + '</li>' +
+        '<li>Work-order disposition: ' + (w ? esc(v2Minutes(c.opened_at, w.created_at)) + " min" : "not completed") + '</li>' +
+        '<li>Total case duration: ' + esc(v2Minutes(c.opened_at, finish)) + ' min</li></ul></div>';
+
+    html += v2ReportSection("Impact", c.impact);
+    html += v2ReportSection("Evidence", c.evidence);
+    html += '<div class="v2-report-card"><h4>Diagnosis</h4><p>' + esc(c.diagnosis || "Not documented.") + '</p></div>';
+    html += v2ReportSection("Procedure / Safety Checks", c.procedure_checks);
+    html += v2ReportSection("Action / Escalation", c.action_escalation);
+    html += '<div class="v2-report-card"><h4>Work Order</h4><p>' +
+        (w ? 'Disposition: <strong>' + esc(w.disposition) + '</strong><br>Reference: <strong>' +
+        esc(w.work_order_number || w.external_reference || "N/A") + '</strong><br>Priority: ' + esc(w.priority) +
+        ' • Status: ' + esc(w.status) + '<br>' + esc(w.requested_work || w.reason || "") : "No work-order disposition recorded.") +
+        '</p></div>';
+    html += v2ReportSection("Recovery Verification", c.recovery);
+    html += v2ReportSection("Lessons Learned", c.lessons_learned);
+    html += v2ReportSection("Actually Reviewed", (c.reviewed_items || []).map(function(x){ return "Viewed " + x; }));
+
+    document.getElementById("v2ReportBody").innerHTML = html;
+    document.getElementById("v2ReportModal").classList.add("open");
+}
+
+async function setV2SimulatorMode(mode, quiet) {
+    try {
+        await v2Api("/api/simulator/MOTOR-01/mode", {method:"POST", body:JSON.stringify({mode:mode})});
+        if (!quiet) v2Toast("Simulator → " + mode);
+        setTimeout(loadOperations, 800);
+    } catch (error) {
+        v2Toast(error.message);
+    }
+}
+
+function v2SurpriseIncident() {
+    const modes = ["OVERHEAT","OVERCURRENT","UNDERVOLTAGE","BEARING_FAULT","VIBRATION","STOPPED"];
+    const mode = modes[Math.floor(Math.random() * modes.length)];
+    setV2SimulatorMode(mode, true);
+    v2Toast("Surprise incident injected. Investigate from Operator Mode.");
+    setV2View("operator");
+}
+
+document.addEventListener("click", function(event) {
+    const caseItem = event.target.closest("[data-v2-case]");
+    if (caseItem) {
+        v2OpenCase(Number(caseItem.dataset.v2Case));
+        return;
+    }
+
+    const button = event.target.closest("[data-v2-action]");
+    if (!button) return;
+
+    const action = button.dataset.v2Action;
+    if (action === "ack") v2AckAlarm(button.dataset.alarm);
+    else if (action === "investigate") v2InspectAlarm(button.dataset.alarm);
+    else if (action === "trend") v2ShowTrend(button.dataset.eq, button.dataset.key, button.dataset.name, button.dataset.unit);
+    else if (action === "equipment") v2FocusEquipment(button.dataset.eq);
+    else if (action === "case") v2CreateCase(button.dataset.alarm);
+    else if (action === "case-trend" && v2CurrentCase) v2ShowTrend(v2CurrentCase.equipment_id, v2CurrentCase.point_key, v2CurrentCase.point_name, v2CurrentCase.alarm_unit);
+    else if (action === "procedure") {
+        v2RecordViewed("Procedure guidance");
+        const block = document.getElementById("v2ProcedureBlock");
+        if (block) block.scrollIntoView({behavior:"smooth"});
+    }
+    else if (action === "work-order") v2OpenWorkOrder();
+    else if (action === "report") v2ShowReport();
+    else if (action === "save-case") v2SaveCase();
+    else if (action === "close-case") v2CloseCase();
+});
+
+v2LoadCases();
+setV2View("operator");
+setInterval(v2LoadCases, 10000);
+
 </script>
 
 </body>
