@@ -1,10 +1,10 @@
-# Virtual Data Center Lab — V1
+# Virtual Data Center Lab — V2 Operator Workflow
 
 A hands-on home lab for practicing **data center monitoring, critical-facilities telemetry, BMS concepts, alarms, and troubleshooting**.
 
 I built this project to move beyond reading about critical infrastructure and create a small environment where I can generate equipment telemetry, monitor operating conditions, configure alarm thresholds, inject faults, and observe system behavior.
 
-> **Status:** Version 1 — active learning project. This is a simulated lab, not a production data center.
+> **Status:** Version 2 operator-workflow build — active learning project. This is a simulated lab, not a production data center.
 
 ## Architecture
 
@@ -32,6 +32,65 @@ flowchart TD
 MOTOR-01 → MQTT → Telegraf → InfluxDB → Grafana
               └→ Control Center → Alarm Engine
 ```
+
+
+## V2 Operator Workflow
+
+V2 turns the monitoring lab into an **alarm-driven critical-facilities training workflow**.
+
+The current implemented path is:
+
+\`\`\`text
+Incident / telemetry change
+        ↓
+Alarm appears
+        ↓
+Acknowledge / investigate / view trend / view equipment
+        ↓
+Create Case from the alarm
+        ↓
+Impact → Evidence → Diagnosis → Procedure → Action / Escalation
+        ↓
+Create Work Order / Link Existing / No Corrective Work Required
+        ↓
+Recovery verification
+        ↓
+Case report preview
+\`\`\`
+
+### Implemented in this V2 slice
+
+- Stable active-alarm IDs and first-seen timestamps
+- Alarm acknowledgement
+- Browser-controlled MOTOR-01 fault injection
+- **Surprise Incident** mode so the operator can troubleshoot without being shown the injected fault
+- In-memory live mini-trends from simulator telemetry
+- Alarm → Create Case with automatic alarm/equipment/value/threshold evidence capture
+- Persistent investigation cases stored in SQLite
+- Editable starter bullets for impact, evidence, procedures, actions/escalation, recovery and lessons learned
+- Diagnosis intentionally left primarily to the learner
+- Procedure guidance organized as Condition, Risk, Immediate Checks, Safety/PPE, Escalate When and Next Step
+- Viewed-item tracking for trends, equipment and procedure guidance
+- Required work-order disposition:
+  - Create Work Order
+  - Link Existing Work Order
+  - No Corrective Work Required + reason
+- Recovery documentation required before a case can be closed
+- Case report preview with **Training Response Targets** clearly separated from real site SLAs
+- Separate Operator and Admin views in the Control Center
+
+### Still on the roadmap
+
+- Persisted alarm/event history across Control Center restarts
+- Full InfluxDB-backed case trend snapshots with **Before → Fault → Alarm → Response → Recovery**
+- Additional live equipment simulators for cooling and electrical systems
+- Modbus TCP and BACnet/IP simulation
+- Incident-template library by Electrical / Cooling / Controls / Operations
+- Admin QA for duplicate incidents, missing telemetry, mappings, procedures and recovery criteria
+- Casebook draft/review/publishing workflow
+- Published case pages with selected graphs/screenshots
+- Full desktop/mobile/light/dark QA pass
+
 
 ## What V1 Does
 
@@ -168,7 +227,6 @@ It is important to distinguish between implemented telemetry and the roadmap.
 - UPS / power equipment
 - Zabbix alarm integration
 - Digital and multistate alarm logic
-- Browser-based fault-injection controls
 - Additional troubleshooting scenarios
 
 ## Why I Built It
